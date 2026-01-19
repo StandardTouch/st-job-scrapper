@@ -11,11 +11,13 @@ services:
       MYSQL_DATABASE: ${DB_NAME:-py_scrapper}
       MYSQL_USER: ${DB_USER:-scraper_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-scraper_password}
-    ports:
-      - "3306:3306"
+    # Port mapping - commented out to avoid port conflicts
+    # Containers can access MySQL via Docker network using hostname "mysql"
+    # Uncomment below if you need external MySQL access
+    # ports:
+    #   - "${MYSQL_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -49,7 +51,6 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
-      - ./scraped_data.csv:/app/scraped_data.csv
     networks:
       - scraper-network
     # Uncomment the following lines if you want to run scraper on a schedule using cron
