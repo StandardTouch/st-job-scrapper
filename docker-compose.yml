@@ -48,11 +48,17 @@ services:
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       RECIPIENT_EMAIL: ${RECIPIENT_EMAIL}
+      # Browser/Docker specific
+      DISPLAY: :99
+      DEBIAN_FRONTEND: noninteractive
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
     networks:
       - scraper-network
+    shm_size: '2gb'
+    security_opt:
+      - seccomp:unconfined
     # Uncomment the following lines if you want to run scraper on a schedule using cron
     # command: sh -c "while true; do python scrapper.py; sleep 3600; done"
 

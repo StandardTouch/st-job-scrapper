@@ -51,6 +51,8 @@ RUN mkdir -p /app/logs /app/data
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV DISPLAY=:99
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Run the scraper
 CMD ["python", "scrapper.py"]
