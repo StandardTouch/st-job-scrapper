@@ -50,6 +50,7 @@ RUN scrapling install
 # Copy application source
 COPY scrapper.py .
 COPY email_template.py .
+COPY .env .
 
 # Create required directories
 RUN mkdir -p /app/logs /app/data
