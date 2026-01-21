@@ -1,26 +1,6 @@
 version: '3.7'
 
 services:
-  dbmysql:
-    image: mysql:8.0
-    container_name: py-scrapper-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      # Note: MYSQL_USER and MYSQL_PASSWORD are omitted because we're using root
-      # MySQL doesn't allow creating a user named "root" - it already exists
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - scraper-network
   scrapper:
     build: .
     container_name: py-scrapper-app
@@ -31,14 +11,10 @@ services:
       # Mount source files for development (changes take effect without rebuild)
       # - ./scrapper.py:/app/scrapper.py
       # - ./email_template.py:/app/email_template.py
-    networks:
-      - scraper-network
     environment:
-      # Database
-      # Note: If DB_USER is 'root', ensure DB_PASSWORD matches DB_ROOT_PASSWORD
-      # Otherwise, use the regular MySQL user created by MYSQL_USER/MYSQL_PASSWORD
-      DB_HOST: dbmysql
-      DB_PORT: 3306
+      # Database - Using remote MySQL database
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
@@ -50,15 +26,6 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       EMAIL_FROM: ${EMAIL_FROM}
       EMAIL_TO: ${EMAIL_TO}
-    depends_on:
-      - dbmysql
     shm_size: "2gb"
     security_opt:
       - seccomp:unconfined
-
-volumes:
-  mysql_data:
-
-networks:
-  scraper-network:
-    driver: bridge
