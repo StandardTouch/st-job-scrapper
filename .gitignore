@@ -1,0 +1,5 @@
+.env
+CONTABO_SETUP.md
+data/
+logs/
+run-scrapper.sh
