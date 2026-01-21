@@ -2,20 +2,19 @@ services:
   scrapper:
     build: .
     container_name: py-scrapper-app
-    restart: no
+    restart: always
+    command: tail -f /dev/null  # keep container alive
 
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
 
-    # IMPORTANT: let Coolify inject env vars
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
