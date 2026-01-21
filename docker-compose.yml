@@ -4,7 +4,7 @@ services:
   scrapper:
     build: .
     container_name: py-scrapper-app
-    restart: "no"
+    restart: "always"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
