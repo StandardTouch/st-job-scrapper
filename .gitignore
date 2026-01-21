@@ -1,4 +1,6 @@
 .env
+env/
+__pycache__/
 CONTABO_SETUP.md
 data/
 logs/

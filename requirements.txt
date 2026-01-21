@@ -3,3 +3,5 @@ mysql-connector-python>=8.0.0
 
 # Environment Variables
 python-dotenv>=1.0.0
+
+scrapling>=0.3.0
