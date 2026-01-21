@@ -45,7 +45,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Scrapling browsers
-RUN scrapling install
+# RUN scrapling install
 
 # Copy application source
 COPY scrapper.py .

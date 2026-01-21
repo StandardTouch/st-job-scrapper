@@ -1,7 +1,7 @@
 import os
 import csv
 import logging
-from scrapling.fetchers import Fetcher, StealthyFetcher
+# from scrapling.fetchers import Fetcher, StealthyFetcher
 import mysql.connector
 from dotenv import load_dotenv
 from datetime import datetime
@@ -256,36 +256,12 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
 def check_mysql_connection():
     global conn
     try:
-        # Get environment variables with defaults/validation
-        db_host = os.getenv('DB_HOST')
-        # if not db_host:
-        #     raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host. Current env vars: " + str([k for k in os.environ.keys() if 'DB' in k]))
-        
-        db_port = os.getenv('DB_PORT', '3306')
-        db_user = os.getenv('DB_USER')
-        db_password = os.getenv('DB_PASSWORD')
-        db_name = os.getenv('DB_NAME')
-        
-        # Debug: Print all DB-related environment variables
-        logger.info("=== Environment Variables Debug ===")
-        logger.info(f"DB_HOST: {db_host}")
-        logger.info(f"DB_PORT: {db_port}")
-        logger.info(f"DB_USER: {db_user}")
-        logger.info(f"DB_PASSWORD: {'***' if db_password else 'NOT SET'}")
-        logger.info(f"DB_NAME: {db_name}")
-        logger.info(f"All DB env vars: {[k for k in os.environ.keys() if 'DB' in k]}")
-        logger.info("====================================")
-        
-        if not all([db_user, db_password, db_name]):
-            missing = [var for var, val in [('DB_USER', db_user), ('DB_PASSWORD', db_password), ('DB_NAME', db_name)] if not val]
-            raise Exception(f"Missing required environment variables: {', '.join(missing)}")
-        
         conn = mysql.connector.connect(
-            host=db_host,
-            port=int(db_port),
-            user=db_user,
-            password=db_password,
-            database=db_name,
+            port=os.getenv('DB_PORT', '3306'),
+            host=os.getenv('DB_HOST'),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME'),
         )
         if not conn.is_connected():
             raise Exception("MySQL connection failed: Connection not established")
@@ -395,23 +371,23 @@ if __name__ == "__main__":
         run_migration()
         
         # Only proceed with scraping if connection and migration are successful
-        start_date_time = datetime.now()
-        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
-        end_date_time = datetime.now()
-        total_pages = 1
-        total_items = len(items)
-        success_listing_pages = success_page_count
-        failed_listing_pages = failed_page_count
-        success_details_pages = len([item for item in items if item.get('success')])
-        failed_details_pages = len([item for item in items if not item.get('success')])
-        scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
-        insert_scrapping_items(scrapping_report_id, items)
-        save_to_csv(items, success_page_count, failed_page_count)
+        # start_date_time = datetime.now()
+        # items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
+        # end_date_time = datetime.now()
+        # total_pages = 1
+        # total_items = len(items)
+        # success_listing_pages = success_page_count
+        # failed_listing_pages = failed_page_count
+        # success_details_pages = len([item for item in items if item.get('success')])
+        # failed_details_pages = len([item for item in items if not item.get('success')])
+        # scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
+        # insert_scrapping_items(scrapping_report_id, items)
+        # save_to_csv(items, success_page_count, failed_page_count)
         
         # Get report data and send email
-        report_data = get_scrapping_report(scrapping_report_id)
-        if report_data:
-            send_email_report(report_data)
+        # report_data = get_scrapping_report(scrapping_report_id)
+        # if report_data:
+        #     send_email_report(report_data)
         
         close_mysql_connection()
     except Exception as e:

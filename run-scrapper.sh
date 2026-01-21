@@ -10,9 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Ensure MySQL is running
-if ! docker-compose ps mysql | grep -q "Up"; then
+if ! docker-compose ps dbmysql | grep -q "Up"; then
     echo "Starting MySQL container..."
-    docker-compose up -d mysql
+    docker-compose up -d dbmysql
     echo "Waiting for MySQL to be healthy..."
     sleep 10
 fi
