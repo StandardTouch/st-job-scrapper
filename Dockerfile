@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 FROM python:3.11-slim
 
 # Prevent interactive prompts
@@ -114,5 +113,4 @@ COPY email_template.py .
 RUN mkdir -p /app/logs /app/data
 
 # Default command - runs script and exits
->>>>>>> 733c646c44d028f9560ab5e5d232c88ca4792fbd
 CMD ["python", "-u", "scrapper.py"]
