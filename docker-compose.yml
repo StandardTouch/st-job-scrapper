@@ -1,31 +1,27 @@
-version: '3.7'
-
 services:
   scrapper:
     build: .
     container_name: py-scrapper-app
-    restart: "always"
+    restart: always
+    command: tail -f /dev/null  # keep container alive
+
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
-      # Mount source files for development (changes take effect without rebuild)
-      # - ./scrapper.py:/app/scrapper.py
-      # - ./email_template.py:/app/email_template.py
+
     environment:
-      # Database - Using remote MySQL database
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-
-      # Email
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       EMAIL_FROM: ${EMAIL_FROM}
       EMAIL_TO: ${EMAIL_TO}
+
     shm_size: "2gb"
     security_opt:
       - seccomp:unconfined

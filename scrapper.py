@@ -394,7 +394,7 @@ if __name__ == "__main__":
         start_date_time = datetime.now()
         print(f"Scraping started at: {start_date_time}", flush=True)
         
-        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
+        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=None)
         
         end_date_time = datetime.now()
         print(f"Scraping completed at: {end_date_time}", flush=True)
@@ -417,8 +417,8 @@ if __name__ == "__main__":
         insert_scrapping_items(scrapping_report_id, items)
         print(f"Inserted {len(items)} items into database", flush=True)
         
-        save_to_csv(items, success_page_count, failed_page_count)
-        print("CSV file saved successfully", flush=True)
+        # save_to_csv(items, success_page_count, failed_page_count)
+        # print("CSV file saved successfully", flush=True)
         
         # Get report data and send email
         print("=" * 50, flush=True)
