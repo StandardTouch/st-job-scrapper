@@ -1,70 +1,62 @@
-version: '3.8'
-
 services:
-  # MySQL Database Service
   mysql:
     image: mysql:8.0
     container_name: py-scrapper-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-py_scrapper}
-      MYSQL_USER: ${DB_USER:-scraper_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-scraper_password}
-    # Port mapping - commented out to avoid port conflicts
-    # Containers can access MySQL via Docker network using hostname "mysql"
-    # Uncomment below if you need external MySQL access
-    # ports:
-    #   - "${MYSQL_PORT:-3307}:3306"
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      # Note: MYSQL_USER and MYSQL_PASSWORD are omitted because we're using root
+      # MySQL doesn't allow creating a user named "root" - it already exists
+    ports:
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - scraper-network
-
-  # Python Scraper Application
-  scraper:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  scrapper:
+    build: .
     container_name: py-scrapper-app
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      # Database Configuration
-      DB_HOST: mysql
-      DB_USER: ${DB_USER:-scraper_user}
-      DB_PASSWORD: ${DB_PASSWORD:-scraper_password}
-      DB_NAME: ${DB_NAME:-py_scrapper}
-      # Email Configuration
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      RECIPIENT_EMAIL: ${RECIPIENT_EMAIL}
-      # Browser/Docker specific
-      DISPLAY: :99
-      DEBIAN_FRONTEND: noninteractive
+    restart: no
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      # Mount source files for development (changes take effect without rebuild)
+      - ./scrapper.py:/app/scrapper.py
+      - ./email_template.py:/app/email_template.py
     networks:
       - scraper-network
-    shm_size: '2gb'
+    environment:
+      # Database
+      # Note: If DB_USER is 'root', ensure DB_PASSWORD matches DB_ROOT_PASSWORD
+      # Otherwise, use the regular MySQL user created by MYSQL_USER/MYSQL_PASSWORD
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_TO: ${EMAIL_TO}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    shm_size: "2gb"
     security_opt:
       - seccomp:unconfined
-    # Uncomment the following lines if you want to run scraper on a schedule using cron
-    # command: sh -c "while true; do python scrapper.py; sleep 3600; done"
 
 volumes:
   mysql_data:
-    driver: local
 
 networks:
   scraper-network:

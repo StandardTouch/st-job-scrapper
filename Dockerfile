@@ -1,12 +1,14 @@
-# Use Python 3.10+ base image
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install system dependencies required for Scrapling and browsers
+# Install system dependencies required for Scrapling / Playwright
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     gnupg \
     ca-certificates \
     fonts-liberation \
@@ -30,29 +32,27 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     libu2f-udev \
     libvulkan1 \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
+# Set working directory
+WORKDIR /app
+
+# Copy dependency file
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Scrapling browsers and dependencies
+# Install Scrapling browsers
 RUN scrapling install
 
-# Copy application files
+# Copy application source
 COPY scrapper.py .
 COPY email_template.py .
 
-# Create directories for logs and data
+# Create required directories
 RUN mkdir -p /app/logs /app/data
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV DISPLAY=:99
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Run the scraper
-CMD ["python", "scrapper.py"]
+# Default command - runs script and exits
+CMD ["python", "-u", "scrapper.py"]

@@ -9,17 +9,65 @@ from email_template import send_email_report
 load_dotenv()
 
 # Configure logging to file with datetime stamps
-log_filename = f"scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+logs_dir = os.path.join(os.getcwd(), 'logs')
+os.makedirs(logs_dir, exist_ok=True)
+log_filename = os.path.join(logs_dir, f"scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
-        logging.FileHandler(log_filename, encoding='utf-8')
+        logging.FileHandler(log_filename, encoding='utf-8'),
+        logging.StreamHandler()  # Also output to console
     ]
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized. Log file: {log_filename}")
+
+# Function to parse and convert datetime string to MySQL DATETIME format
+def parse_datetime_to_mysql(datetime_str):
+    """
+    Convert datetime string from format 'Wednesday, Jan 21, 2026, 1:33:31 AM'
+    to MySQL DATETIME format '2026-01-21 01:33:31'
+    """
+    if not datetime_str:
+        return None
+    
+    try:
+        datetime_str = datetime_str.strip()
+        
+        # Check if already in MySQL format (YYYY-MM-DD HH:MM:SS)
+        # Pattern: starts with 20XX-XX-XX XX:XX:XX (19 characters)
+        if len(datetime_str) == 19 and datetime_str[4] == '-' and datetime_str[7] == '-' and datetime_str[10] == ' ' and datetime_str[13] == ':' and datetime_str[16] == ':':
+            try:
+                # Validate it's a valid datetime
+                datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+                return datetime_str  # Already in correct format
+            except ValueError:
+                pass  # Not valid MySQL format, continue parsing
+        
+        # Try to parse common formats
+        formats = [
+            "%A, %b %d, %Y, %I:%M:%S %p",  # Wednesday, Jan 21, 2026, 1:33:31 AM
+            "%A, %B %d, %Y, %I:%M:%S %p",  # Wednesday, January 21, 2026, 1:33:31 AM
+            "%b %d, %Y, %I:%M:%S %p",      # Jan 21, 2026, 1:33:31 AM
+            "%B %d, %Y, %I:%M:%S %p",      # January 21, 2026, 1:33:31 AM
+        ]
+        
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(datetime_str, fmt)
+                # Convert to MySQL DATETIME format: YYYY-MM-DD HH:MM:SS
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+        
+        # If all formats fail, log warning and return None
+        logger.warning(f"Could not parse datetime: {datetime_str}")
+        return None
+    except Exception as e:
+        logger.error(f"Error parsing datetime '{datetime_str}': {str(e)}")
+        return None
 
 base_url = "https://www.expatriates.com"
 conn = None
@@ -42,7 +90,9 @@ def scrap_details_page(url, log=False):
         posted_date_time = None
         timestamp_span = post_info.css_first('#timestamp')
         if timestamp_span:
-            posted_date_time = timestamp_span.text.strip()
+            datetime_str = timestamp_span.text.strip()
+            # Convert to MySQL DATETIME format
+            posted_date_time = parse_datetime_to_mysql(datetime_str)
 
         # Extract Category, Region, and Posting ID
         category = None
@@ -173,9 +223,14 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
     if not items:
         return
     
+    # Save CSV to data directory
+    data_dir = os.path.join(os.getcwd(), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    csv_path = os.path.join(data_dir, csv_filename)
+    
     csv_headers = ["SL.no", "Link", "title", "success", "posted_date_time", "category", "region", "posting_id", "mobile_no", "whatsapp_number"]
     
-    with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
+    with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_headers)
         writer.writeheader()
         
@@ -194,7 +249,7 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
             }
             writer.writerow(row)
     
-    logger.info(f"\nData saved to {csv_filename}")
+    logger.info(f"\nData saved to {csv_path}")
     logger.info(f"Success pages: {success_page_count}, Failed pages: {failed_page_count}")
 
 # check mysql connection
@@ -202,10 +257,11 @@ def check_mysql_connection():
     global conn
     try:
         conn = mysql.connector.connect(
+            port=os.getenv('DB_PORT', '3306'),
             host=os.getenv('DB_HOST'),
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
-            database=os.getenv('DB_NAME')
+            database=os.getenv('DB_NAME'),
         )
         if not conn.is_connected():
             raise Exception("MySQL connection failed: Connection not established")
@@ -272,7 +328,16 @@ def insert_scrapping_items(scrapping_report_id, items):
         cursor = conn.cursor()
         current_time = datetime.now()
         for item in items:
-            cursor.execute("INSERT INTO scrapping_items (scrapping_report_id, link, title, success, posted_date_time, category, region, posting_id, mobile_no, whatsapp_number, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (scrapping_report_id, item.get('link'), item.get('title'), item.get('success'), item.get('posted_date_time'), item.get('category'), item.get('region'), item.get('posting_id'), item.get('mobile_no'), item.get('whatsapp_number'), current_time, current_time))
+            # Ensure posted_date_time is in correct format or None
+            posted_dt = item.get('posted_date_time')
+            if posted_dt and isinstance(posted_dt, str):
+                # Check if already in MySQL format (YYYY-MM-DD HH:MM:SS)
+                if not posted_dt.startswith('20') or len(posted_dt) != 19 or posted_dt[4] != '-' or posted_dt[7] != '-':
+                    # If not in MySQL format, try to parse it
+                    posted_dt = parse_datetime_to_mysql(posted_dt)
+                # If already in MySQL format, use as-is
+            
+            cursor.execute("INSERT INTO scrapping_items (scrapping_report_id, link, title, success, posted_date_time, category, region, posting_id, mobile_no, whatsapp_number, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (scrapping_report_id, item.get('link'), item.get('title'), item.get('success'), posted_dt, item.get('category'), item.get('region'), item.get('posting_id'), item.get('mobile_no'), item.get('whatsapp_number'), current_time, current_time))
         conn.commit()
         cursor.close()
         return True
@@ -307,7 +372,7 @@ if __name__ == "__main__":
         
         # Only proceed with scraping if connection and migration are successful
         start_date_time = datetime.now()
-        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=5)
+        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
         end_date_time = datetime.now()
         total_pages = 1
         total_items = len(items)

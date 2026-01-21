@@ -32,7 +32,8 @@ def send_email_report(report_data):
     try:
         smtp_user = os.getenv('SMTP_USER')
         smtp_password = os.getenv('SMTP_PASSWORD')
-        recipient_email = os.getenv('RECIPIENT_EMAIL')
+        # Support both EMAIL_TO and RECIPIENT_EMAIL for compatibility
+        recipient_email = os.getenv('EMAIL_TO') or os.getenv('RECIPIENT_EMAIL')
         smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')  # Default to Gmail
         smtp_port = int(os.getenv('SMTP_PORT', '587'))  # Default to 587
         
@@ -43,13 +44,13 @@ def send_email_report(report_data):
             if not smtp_password:
                 missing_vars.append('SMTP_PASSWORD')
             if not recipient_email:
-                missing_vars.append('RECIPIENT_EMAIL')
+                missing_vars.append('EMAIL_TO or RECIPIENT_EMAIL')
             raise Exception(f"Missing required email environment variables: {', '.join(missing_vars)}. Please check your .env file.")
         
         # Parse recipient emails (support comma-separated emails)
         recipient_emails = [email.strip() for email in recipient_email.split(',') if email.strip()]
         if not recipient_emails:
-            raise Exception("No valid recipient emails found. Please check RECIPIENT_EMAIL in your .env file.")
+            raise Exception("No valid recipient emails found. Please check EMAIL_TO or RECIPIENT_EMAIL in your .env file.")
         
         # Create message
         msg = MIMEMultipart('alternative')
