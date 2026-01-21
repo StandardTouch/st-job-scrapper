@@ -256,12 +256,26 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
 def check_mysql_connection():
     global conn
     try:
+        # Get environment variables with defaults/validation
+        db_host = os.getenv('DB_HOST')
+        if not db_host:
+            raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host.")
+        
+        db_port = os.getenv('DB_PORT', '3306')
+        db_user = os.getenv('DB_USER')
+        db_password = os.getenv('DB_PASSWORD')
+        db_name = os.getenv('DB_NAME')
+        
+        if not all([db_user, db_password, db_name]):
+            missing = [var for var, val in [('DB_USER', db_user), ('DB_PASSWORD', db_password), ('DB_NAME', db_name)] if not val]
+            raise Exception(f"Missing required environment variables: {', '.join(missing)}")
+        
         conn = mysql.connector.connect(
-            port=os.getenv('DB_PORT', '3306'),
-            host=os.getenv('DB_HOST'),
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASSWORD'),
-            database=os.getenv('DB_NAME'),
+            host=db_host,
+            port=int(db_port),
+            user=db_user,
+            password=db_password,
+            database=db_name,
         )
         if not conn.is_connected():
             raise Exception("MySQL connection failed: Connection not established")

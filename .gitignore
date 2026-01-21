@@ -6,3 +6,8 @@ run-scrapper.sh.env
 CONTABO_SETUP.md
 data/
 logs/
+CHECK_MYSQL.md
+check_mysql.sh
+COOLIFY_ENV_SETUP.md
+COOLIFY_SETUP.md
+FIX_MYSQL_CONNECTION.md

@@ -1,5 +1,5 @@
 services:
-  mysql:
+  dbmysql:
     image: mysql:8.0
     container_name: py-scrapper-mysql
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
       # Database
       # Note: If DB_USER is 'root', ensure DB_PASSWORD matches DB_ROOT_PASSWORD
       # Otherwise, use the regular MySQL user created by MYSQL_USER/MYSQL_PASSWORD
-      DB_HOST: mysql
+      DB_HOST: dbmysql
       DB_PORT: 3306
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -50,7 +50,7 @@ services:
       EMAIL_FROM: ${EMAIL_FROM}
       EMAIL_TO: ${EMAIL_TO}
     depends_on:
-      mysql:
+      dbmysql:
         condition: service_healthy
     shm_size: "2gb"
     security_opt:
