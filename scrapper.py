@@ -213,7 +213,9 @@ def scrape_listing_pages(total_pages=1, max_items=None):
                 items.append(data)
                 if max_items and len(items) >= max_items:
                     break
-            
+                print("=" * 50)
+                print(item_details)
+                print("=" * 50)
             success_page_count += 1
         except Exception as e:
             logger.error(f"Error fetching listing page {current_page}: {str(e)}")
@@ -372,33 +374,19 @@ def get_scrapping_report(report_id):
 # Main execution
 if __name__ == "__main__":
     try:
-        print("=" * 50, flush=True)
-        print("Starting Job Scrapper", flush=True)
-        print("=" * 50, flush=True)
         
         # Check database connection - must succeed before proceeding
-        print("Connecting to database...", flush=True)
         check_mysql_connection()
-        print("Database connection successful!", flush=True)
         
         # Run migration - must succeed before proceeding
-        print("Running database migrations...", flush=True)
         run_migration()
-        print("Migrations completed successfully!", flush=True)
-        
-        # Only proceed with scraping if connection and migration are successful
-        print("=" * 50, flush=True)
-        print("Starting scraping process...", flush=True)
-        print("=" * 50, flush=True)
+                
         
         start_date_time = datetime.now()
-        print(f"Scraping started at: {start_date_time}", flush=True)
         
-        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=None)
+        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=5)
         
         end_date_time = datetime.now()
-        print(f"Scraping completed at: {end_date_time}", flush=True)
-        print(f"Total items scraped: {len(items)}", flush=True)
         
         total_pages = 1
         total_items = len(items)
@@ -407,52 +395,23 @@ if __name__ == "__main__":
         success_details_pages = len([item for item in items if item.get('success')])
         failed_details_pages = len([item for item in items if not item.get('success')])
         
-        print("=" * 50, flush=True)
-        print("Saving data to database...", flush=True)
-        print("=" * 50, flush=True)
-        
         scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
-        print(f"Report ID: {scrapping_report_id}", flush=True)
-        
         insert_scrapping_items(scrapping_report_id, items)
-        print(f"Inserted {len(items)} items into database", flush=True)
-        
-        # save_to_csv(items, success_page_count, failed_page_count)
-        # print("CSV file saved successfully", flush=True)
         
         # Get report data and send email
-        print("=" * 50, flush=True)
-        print("Sending email report...", flush=True)
-        print("=" * 50, flush=True)
-        
         report_data = get_scrapping_report(scrapping_report_id)
         if report_data:
             try:
                 send_email_report(report_data)
-                print("Email report sent successfully", flush=True)
             except Exception as email_error:
                 error_msg = f"Failed to send email: {str(email_error)}"
                 logger.error(error_msg)
-                print(f"Warning: {error_msg}", flush=True)
-                print("Continuing without email notification...", flush=True)
         else:
-            print("Warning: Could not retrieve report data for email", flush=True)
-        
-        print("=" * 50, flush=True)
-        print("Scrapper execution completed successfully", flush=True)
-        print("=" * 50, flush=True)
-        logger.info("Scrapper execution completed successfully")
+            logger.error("Warning: Could not retrieve report data for email")
         
         close_mysql_connection()
-        print("Database connection closed.", flush=True)
     except Exception as e:
         error_msg = f"ERROR: {str(e)}"
-        print("=" * 50, flush=True)
-        print(error_msg, flush=True)
-        print("=" * 50, flush=True)
-        logger.error(f"\n{'='*50}")
         logger.error(error_msg)
-        logger.error(f"{'='*50}")
-        logger.error("Scraping aborted. Please fix the error and try again.")
         close_mysql_connection()
         exit(1)
