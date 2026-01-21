@@ -44,8 +44,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Scrapling browsers
-# RUN scrapling install
+# Install Playwright browsers (required for scrapling)
+RUN playwright install chromium
+RUN playwright install-deps chromium
 
 # Copy application source
 COPY scrapper.py .

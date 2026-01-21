@@ -1,7 +1,7 @@
 import os
 import csv
 import logging
-# from scrapling.fetchers import Fetcher, StealthyFetcher
+from scrapling.fetchers import StealthyFetcher
 import mysql.connector
 from dotenv import load_dotenv
 from datetime import datetime
@@ -12,17 +12,25 @@ load_dotenv()
 logs_dir = os.path.join(os.getcwd(), 'logs')
 os.makedirs(logs_dir, exist_ok=True)
 log_filename = os.path.join(logs_dir, f"scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+
+# Create handlers with immediate flushing
+file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+console_handler = logging.StreamHandler()
+
+# Set format
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(log_filename, encoding='utf-8'),
-        logging.StreamHandler()  # Also output to console
-    ]
+    handlers=[file_handler, console_handler]
 )
+
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized. Log file: {log_filename}")
+print(f"Logging initialized. Log file: {log_filename}", flush=True)
 
 # Function to parse and convert datetime string to MySQL DATETIME format
 def parse_datetime_to_mysql(datetime_str):
@@ -364,35 +372,86 @@ def get_scrapping_report(report_id):
 # Main execution
 if __name__ == "__main__":
     try:
+        print("=" * 50, flush=True)
+        print("Starting Job Scrapper", flush=True)
+        print("=" * 50, flush=True)
+        
         # Check database connection - must succeed before proceeding
+        print("Connecting to database...", flush=True)
         check_mysql_connection()
+        print("Database connection successful!", flush=True)
         
         # Run migration - must succeed before proceeding
+        print("Running database migrations...", flush=True)
         run_migration()
+        print("Migrations completed successfully!", flush=True)
         
         # Only proceed with scraping if connection and migration are successful
-        # start_date_time = datetime.now()
-        # items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
-        # end_date_time = datetime.now()
-        # total_pages = 1
-        # total_items = len(items)
-        # success_listing_pages = success_page_count
-        # failed_listing_pages = failed_page_count
-        # success_details_pages = len([item for item in items if item.get('success')])
-        # failed_details_pages = len([item for item in items if not item.get('success')])
-        # scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
-        # insert_scrapping_items(scrapping_report_id, items)
-        # save_to_csv(items, success_page_count, failed_page_count)
+        print("=" * 50, flush=True)
+        print("Starting scraping process...", flush=True)
+        print("=" * 50, flush=True)
+        
+        start_date_time = datetime.now()
+        print(f"Scraping started at: {start_date_time}", flush=True)
+        
+        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=1, max_items=1)
+        
+        end_date_time = datetime.now()
+        print(f"Scraping completed at: {end_date_time}", flush=True)
+        print(f"Total items scraped: {len(items)}", flush=True)
+        
+        total_pages = 1
+        total_items = len(items)
+        success_listing_pages = success_page_count
+        failed_listing_pages = failed_page_count
+        success_details_pages = len([item for item in items if item.get('success')])
+        failed_details_pages = len([item for item in items if not item.get('success')])
+        
+        print("=" * 50, flush=True)
+        print("Saving data to database...", flush=True)
+        print("=" * 50, flush=True)
+        
+        scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
+        print(f"Report ID: {scrapping_report_id}", flush=True)
+        
+        insert_scrapping_items(scrapping_report_id, items)
+        print(f"Inserted {len(items)} items into database", flush=True)
+        
+        save_to_csv(items, success_page_count, failed_page_count)
+        print("CSV file saved successfully", flush=True)
         
         # Get report data and send email
-        # report_data = get_scrapping_report(scrapping_report_id)
-        # if report_data:
-        #     send_email_report(report_data)
+        print("=" * 50, flush=True)
+        print("Sending email report...", flush=True)
+        print("=" * 50, flush=True)
+        
+        report_data = get_scrapping_report(scrapping_report_id)
+        if report_data:
+            try:
+                send_email_report(report_data)
+                print("Email report sent successfully", flush=True)
+            except Exception as email_error:
+                error_msg = f"Failed to send email: {str(email_error)}"
+                logger.error(error_msg)
+                print(f"Warning: {error_msg}", flush=True)
+                print("Continuing without email notification...", flush=True)
+        else:
+            print("Warning: Could not retrieve report data for email", flush=True)
+        
+        print("=" * 50, flush=True)
+        print("Scrapper execution completed successfully", flush=True)
+        print("=" * 50, flush=True)
+        logger.info("Scrapper execution completed successfully")
         
         close_mysql_connection()
+        print("Database connection closed.", flush=True)
     except Exception as e:
+        error_msg = f"ERROR: {str(e)}"
+        print("=" * 50, flush=True)
+        print(error_msg, flush=True)
+        print("=" * 50, flush=True)
         logger.error(f"\n{'='*50}")
-        logger.error(f"ERROR: {str(e)}")
+        logger.error(error_msg)
         logger.error(f"{'='*50}")
         logger.error("Scraping aborted. Please fix the error and try again.")
         close_mysql_connection()
