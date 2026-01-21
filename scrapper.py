@@ -258,8 +258,8 @@ def check_mysql_connection():
     try:
         # Get environment variables with defaults/validation
         db_host = os.getenv('DB_HOST')
-        if not db_host:
-            raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host. Current env vars: " + str([k for k in os.environ.keys() if 'DB' in k]))
+        # if not db_host:
+        #     raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host. Current env vars: " + str([k for k in os.environ.keys() if 'DB' in k]))
         
         db_port = os.getenv('DB_PORT', '3306')
         db_user = os.getenv('DB_USER')
