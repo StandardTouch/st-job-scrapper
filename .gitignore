@@ -2,4 +2,7 @@
 CONTABO_SETUP.md
 data/
 logs/
-run-scrapper.sh
+run-scrapper.sh.env
+CONTABO_SETUP.md
+data/
+logs/
