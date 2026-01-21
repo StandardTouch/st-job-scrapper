@@ -257,15 +257,24 @@ def check_mysql_connection():
     global conn
     try:
         # Get environment variables with defaults/validation
-        db_host = os.getenv('DB_HOST', 'dbmysql')
+        db_host = os.getenv('DB_HOST')
         if not db_host:
-            raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host.")
+            raise Exception("DB_HOST environment variable is not set. Set it to 'mysql' (service name) or your MySQL host. Current env vars: " + str([k for k in os.environ.keys() if 'DB' in k]))
         
         db_port = os.getenv('DB_PORT', '3306')
         db_user = os.getenv('DB_USER')
         db_password = os.getenv('DB_PASSWORD')
         db_name = os.getenv('DB_NAME')
-        print(db_host, db_port, db_user, db_password, db_name)
+        
+        # Debug: Print all DB-related environment variables
+        logger.info("=== Environment Variables Debug ===")
+        logger.info(f"DB_HOST: {db_host}")
+        logger.info(f"DB_PORT: {db_port}")
+        logger.info(f"DB_USER: {db_user}")
+        logger.info(f"DB_PASSWORD: {'***' if db_password else 'NOT SET'}")
+        logger.info(f"DB_NAME: {db_name}")
+        logger.info(f"All DB env vars: {[k for k in os.environ.keys() if 'DB' in k]}")
+        logger.info("====================================")
         
         if not all([db_user, db_password, db_name]):
             missing = [var for var, val in [('DB_USER', db_user), ('DB_PASSWORD', db_password), ('DB_NAME', db_name)] if not val]
