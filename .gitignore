@@ -11,3 +11,4 @@ check_mysql.sh
 COOLIFY_ENV_SETUP.md
 COOLIFY_SETUP.md
 FIX_MYSQL_CONNECTION.md
+dev-docker-compose.yml
