@@ -1,13 +1,16 @@
+# Web Scraping
+# Step 1: Base scrapling package
+scrapling>=0.3.0
+
+# Step 2: Fetchers and their dependencies
+scrapling[fetchers]>=0.3.0
+
+# Note: Step 3 requires running the command: scrapling install
+# This downloads browsers and system dependencies
+# This is handled automatically in the Dockerfile
+
 # Database
 mysql-connector-python>=8.0.0
 
 # Environment Variables
 python-dotenv>=1.0.0
-
-# Web Scraping
-scrapling>=0.3.0
-curl-cffi>=0.5.0
-playwright>=1.40.0
-patchright>=0.1.0
-msgspec>=0.18.0
-browserforge>=0.1.0
