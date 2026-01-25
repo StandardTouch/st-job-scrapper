@@ -106,20 +106,26 @@ def scrap_details_page(url, log=False):
         category = None
         region = None
         posting_id = None
+        email_id = None
 
         category_li = post_info.css('li')
         for li in category_li:
             category_text = li.xpath('//li[strong[text()="Category:"]]/text()').get().strip()
             region_text = li.xpath('//li[strong[text()="Region:"]]/text()').get().strip()
             posting_id_text = li.xpath('//li[strong[text()="Posting ID:"]]/text()').get().strip()
+            email_id_text = li.xpath('//li[strong[text()="Posted by:"]]').first
             if category_text:
                 category = category_text
             if region_text:
                 region = region_text
             if posting_id_text:
                 posting_id = posting_id_text
-            
-            if category and region and posting_id:
+            if email_id_text:
+                anchor = li.css('a').first
+                if anchor:
+                    email_id = anchor.attrib.get('href', '').replace('mailto:', '').strip()
+
+            if category and region and posting_id and email_id:
                 break
         
         # title
@@ -168,6 +174,7 @@ def scrap_details_page(url, log=False):
             "posting_id": posting_id,
             "mobile_no": mobile_no,
             "whatsapp_number": whatsapp_number,
+            "email_id": email_id,
             "success": True,
         }
 
@@ -238,7 +245,7 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
     os.makedirs(data_dir, exist_ok=True)
     csv_path = os.path.join(data_dir, csv_filename)
     
-    csv_headers = ["SL.no", "Link", "title", "success", "posted_date_time", "category", "region", "posting_id", "mobile_no", "whatsapp_number"]
+    csv_headers = ["SL.no", "Link", "title", "success", "posted_date_time", "category", "region", "posting_id", "mobile_no", "whatsapp_number", "email_id"]
     
     with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_headers)
@@ -256,6 +263,7 @@ def save_to_csv(items, success_page_count, failed_page_count, csv_filename="scra
                 "posting_id": item.get("posting_id", ""),
                 "mobile_no": item.get("mobile_no", ""),
                 "whatsapp_number": item.get("whatsapp_number", ""),
+                "email_id": item.get("email_id", ""),
             }
             writer.writerow(row)
     
@@ -297,18 +305,23 @@ def run_migration():
     if not conn or not conn.is_connected():
         raise Exception("Cannot run migration: MySQL connection not established")
     
+    cursor = None
     try:
         cursor = conn.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS scrapping_report (id INT AUTO_INCREMENT PRIMARY KEY, start_date_time DATETIME DEFAULT NULL, end_date_time DATETIME DEFAULT NULL, total_pages INT DEFAULT NULL, total_items INT DEFAULT NULL, success_listing_pages INT DEFAULT NULL, failed_listing_pages INT DEFAULT NULL, success_details_pages INT DEFAULT NULL, failed_details_pages INT DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS scrapping_items (id INT AUTO_INCREMENT PRIMARY KEY, scrapping_report_id INT DEFAULT NULL, link VARCHAR(255) DEFAULT NULL, title VARCHAR(255) DEFAULT NULL, success BOOLEAN DEFAULT NULL, posted_date_time DATETIME DEFAULT NULL, category VARCHAR(255) DEFAULT NULL, region VARCHAR(255) DEFAULT NULL, posting_id VARCHAR(255) DEFAULT NULL, mobile_no VARCHAR(255) DEFAULT NULL, whatsapp_number VARCHAR(255) DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS scrapping_items (id INT AUTO_INCREMENT PRIMARY KEY, scrapping_report_id INT DEFAULT NULL, link VARCHAR(255) DEFAULT NULL, title VARCHAR(255) DEFAULT NULL, success BOOLEAN DEFAULT NULL, posted_date_time DATETIME DEFAULT NULL, category VARCHAR(255) DEFAULT NULL, region VARCHAR(255) DEFAULT NULL, posting_id VARCHAR(255) DEFAULT NULL, mobile_no VARCHAR(255) DEFAULT NULL, whatsapp_number VARCHAR(255) DEFAULT NULL, email_id VARCHAR(255) DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL)")
         conn.commit()
-        cursor.close()
         logger.info("Migration completed successfully")
         return True
     except Exception as e:
+        if conn:
+            conn.rollback()
         error_msg = f"Error running migration: {str(e)}"
         logger.error(error_msg)
         raise Exception(error_msg)
+    finally:
+        if cursor:
+            cursor.close()
 
 # insert scrapping report
 def insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages):
@@ -316,17 +329,22 @@ def insert_scrapping_report(start_date_time, end_date_time, total_pages, total_i
     if not conn or not conn.is_connected():
         raise Exception("Cannot insert report: MySQL connection not established")
     
+    cursor = None
     try:
         cursor = conn.cursor()
         current_time = datetime.now()
         cursor.execute("INSERT INTO scrapping_report (start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages, current_time, current_time))
         report_id = cursor.lastrowid
         conn.commit()
-        cursor.close()
         return report_id
     except Exception as e:
+        if conn:
+            conn.rollback()
         logger.error(f"Error inserting scrapping report: {str(e)}")
         raise
+    finally:
+        if cursor:
+            cursor.close()
 
 # insert scrapping items
 def insert_scrapping_items(scrapping_report_id, items):
@@ -334,6 +352,7 @@ def insert_scrapping_items(scrapping_report_id, items):
     if not conn or not conn.is_connected():
         raise Exception("Cannot insert items: MySQL connection not established")
     
+    cursor = None
     try:
         cursor = conn.cursor()
         current_time = datetime.now()
@@ -347,13 +366,36 @@ def insert_scrapping_items(scrapping_report_id, items):
                     posted_dt = parse_datetime_to_mysql(posted_dt)
                 # If already in MySQL format, use as-is
             
-            cursor.execute("INSERT INTO scrapping_items (scrapping_report_id, link, title, success, posted_date_time, category, region, posting_id, mobile_no, whatsapp_number, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (scrapping_report_id, item.get('link'), item.get('title'), item.get('success'), posted_dt, item.get('category'), item.get('region'), item.get('posting_id'), item.get('mobile_no'), item.get('whatsapp_number'), current_time, current_time))
+            # The query as written appears incorrect because it specifies 13 columns but provides 14 placeholders (%s).
+            # Here's the corrected query — ensure that the number of columns matches the number of values:
+            cursor.execute(
+                "INSERT INTO scrapping_items (scrapping_report_id, link, title, success, posted_date_time, category, region, posting_id, mobile_no, whatsapp_number, email_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    scrapping_report_id,
+                    item.get('link'),
+                    item.get('title'),
+                    item.get('success'),
+                    posted_dt,
+                    item.get('category'),
+                    item.get('region'),
+                    item.get('posting_id'),
+                    item.get('mobile_no'),
+                    item.get('whatsapp_number'),
+                    item.get('email_id'),
+                    current_time,
+                    current_time
+                )
+            )
         conn.commit()
-        cursor.close()
         return True
     except Exception as e:
+        if conn:
+            conn.rollback()
         logger.error(f"Error inserting scrapping items: {str(e)}")
         raise
+    finally:
+        if cursor:
+            cursor.close()
 
 # get scrapping report by id
 def get_scrapping_report(report_id):
@@ -361,18 +403,54 @@ def get_scrapping_report(report_id):
     if not conn or not conn.is_connected():
         raise Exception("Cannot get report: MySQL connection not established")
     
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM scrapping_report WHERE id = %s", (report_id,))
         report = cursor.fetchone()
-        cursor.close()
         return report
     except Exception as e:
         logger.error(f"Error getting scrapping report: {str(e)}")
         raise
+    finally:
+        if cursor:
+            cursor.close()
+
+# clean up database for duplicate entries with mobile number
+def clean_up_database():
+    global conn
+    if not conn or not conn.is_connected():
+        raise Exception("Cannot clean up database: MySQL connection not established")
+    
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        # Use JOIN instead of subquery to avoid MySQL error 1093
+        # This deletes all duplicate entries (keeping none per mobile_no)
+        cursor.execute("""
+            DELETE s1 FROM scrapping_items s1
+            INNER JOIN (
+                SELECT mobile_no 
+                FROM scrapping_items 
+                GROUP BY mobile_no 
+                HAVING COUNT(*) > 1
+            ) s2 ON s1.mobile_no = s2.mobile_no
+        """)
+        conn.commit()
+        logger.info("Database cleaned up successfully")
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error cleaning up database: {str(e)}")
+        raise
+    finally:
+        if cursor:
+            cursor.close()
 
 # Main execution
 if __name__ == "__main__":
+    scraping_successful = False
     try:
         
         # Check database connection - must succeed before proceeding
@@ -397,7 +475,10 @@ if __name__ == "__main__":
         
         scrapping_report_id = insert_scrapping_report(start_date_time, end_date_time, total_pages, total_items, success_listing_pages, failed_listing_pages, success_details_pages, failed_details_pages)
         insert_scrapping_items(scrapping_report_id, items)
-        
+
+        # write to csv
+        # save_to_csv(items, success_page_count, failed_page_count)
+
         # Get report data and send email
         report_data = get_scrapping_report(scrapping_report_id)
         if report_data:
@@ -409,6 +490,14 @@ if __name__ == "__main__":
         else:
             logger.error("Warning: Could not retrieve report data for email")
         
+        # Mark scraping as successful if we got here without exceptions
+        scraping_successful = True
+        
+        # clean up database for duplicate entries with mobile number
+        # Only run cleanup if scraping was successful
+        if scraping_successful:
+            clean_up_database()
+
         close_mysql_connection()
     except Exception as e:
         error_msg = f"ERROR: {str(e)}"

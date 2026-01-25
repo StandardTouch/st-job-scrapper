@@ -1,8 +1,4 @@
 # Web Scraping
-# Step 1: Base scrapling package
-scrapling>=0.3.0
-
-# Step 2: Fetchers and their dependencies
 scrapling[fetchers]>=0.3.0
 
 # Note: Step 3 requires running the command: scrapling install
