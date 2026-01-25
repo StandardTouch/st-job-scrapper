@@ -495,8 +495,8 @@ if __name__ == "__main__":
         
         # clean up database for duplicate entries with mobile number
         # Only run cleanup if scraping was successful
-        if scraping_successful:
-            clean_up_database()
+        # if scraping_successful:
+        #     clean_up_database()
 
         close_mysql_connection()
     except Exception as e:
