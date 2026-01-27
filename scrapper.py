@@ -462,7 +462,7 @@ if __name__ == "__main__":
         
         start_date_time = datetime.now()
         
-        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=10, max_items=5)
+        items, success_page_count, failed_page_count = scrape_listing_pages(total_pages=10, max_items=None)
         
         end_date_time = datetime.now()
         
